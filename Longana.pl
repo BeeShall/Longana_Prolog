@@ -255,17 +255,14 @@ compareAndGetBestDomino(_,Move,Move).
 getBestSideForMove(Layout, Hand, [a|Domino], Side, OtherSide, BestMove):- write("However, this domino can be placed on either side!"),nl, getNextMoveScoresAfterPlacement(Layout, Hand, Domino, false, Side, OtherSide, l, LeftScore),
     getNextMoveScoresAfterPlacement(Layout, Hand, Domino, false, Side, OtherSide, r, RightScore),
     write("If played on the LEFT, the next move will yield a score of "),write(LeftScore),write(" and playing on the RIGHT will yield "),write(RightScore), nl,
-    LeftScore \= RightScore,
-    getSideBasedOnScore(LeftScore, RightScore, Side, BestSide),
-    write("Since playing on the "), getSideString(BestSide, String), write(String),write(" yields a better score on the next move, this domino is best if placed on this side! "),
-    append([l],Domino, BestMove).
-getBestSideForMove(_, _, [a|_], _,_, _) :- write("Since you yield the same score on the next move regardless of the side you choose, placing it on the opposite side will create more chances of the opponent screwing up!").
+    getSideBasedOnScore(LeftScore, RightScore, Side, OtherSide, BestSide),
+    append([BestSide],Domino, BestMove).
 getBestSideForMove(_, _, Move, _, _, Move):- Move = [Side|_], write("This domino can be played "),getSideString(Side,String),write(String),nl.
 
-getSideBasedOnScore(LeftScore, LeftScore, l, r).  
-getSideBasedOnScore(RightScore, RightScore, r, l).
-getSideBasedOnScore(LeftScore, RightScore, _, l):-LeftScore > RightScore.
-getSideBasedOnScore(LeftScore, RightScore, _, r) :- RightScore>LeftScore.
+
+getSideBasedOnScore(LeftScore, LeftScore, _, OtherSide, OtherSide):- write("Since you yield the same score on the next move regardless of the side you choose, placing it on the "), getSideString(OtherSide, String), write(String), write(" will create more chances of the opponent screwing up!"),nl.  
+getSideBasedOnScore(LeftScore, RightScore, _, _,l):-LeftScore > RightScore, write("Since playing on the "), getSideString(l, String), write(String),write(" yields a better score on the next move, this domino is best if placed on this side! "),nl.
+getSideBasedOnScore(LeftScore, RightScore, _, _,r) :- RightScore>LeftScore, write("Since playing on the "), getSideString(r, String), write(String),write(" yields a better score on the next move, this domino is best if placed on this side! ").
 
 getNextMoveScoresAfterPlacement(Layout, Hand, Domino, Passed, Side, OtherSide, PlayingSide, Score) :- placeDominoToLayout(Domino, PlayingSide, Layout, NewLayout),
     delete(Hand, Domino, NewHand),
@@ -341,19 +338,25 @@ playRound(OldGameState, NewGameState) :- getTurn(OldGameState, Turn),
     getComputerMove(OldGameState, NewState, false),
     NewGameState = NewState.
 
-runRound(OldGameState, RoundResults, PassCount) :- OldGameState = [_,_,CompHand, _, HumanHand ,_, _, Stock, _, _],
+runRound(OldGameState, OldGameState,_, y, true) :-OldGameState = [TournScore,RoundCount,NewComputer, ComputerScore, NewHuman,HumanScore, Layout, NewStock, Passed, NextPlayer],
+    NewLayout = [l|Layout],
+    append(NewLayout, [r], FinalLayout),
+    write([TournScore,RoundCount,NewComputer, ComputerScore, NewHuman,HumanScore, FinalLayout, NewStock, Passed, NextPlayer]),nl.
+runRound(OldGameState, RoundResults, PassCount, _, false) :- OldGameState = [_,_,CompHand, _, HumanHand ,_, _, Stock, _, _],
     checkIfRoundEnded(Stock, HumanHand, CompHand, PassCount),nl,
     write("The round has ended!"),nl,
     calculateRoundScore(OldGameState, CompScore, HumanScore ),
     RoundResults = [CompScore,HumanScore].%calculate score and display winner  
-runRound(OldGameState, NewGameState, PassCount) :- getLayout(OldGameState,Layout),
+runRound(OldGameState, NewGameState, PassCount, n, SaveAndQuit) :- getLayout(OldGameState,Layout),
     getStock(OldGameState, Stock),
     displayGameState(Layout,Stock),
     playRound(OldGameState, NewState),
     getPlayerPassed(NewState, Passed),
     updatePassCount(Passed, PassCount, NewPassCount),
-    runRound( NewState, NewestGameState, NewPassCount),
-    NewGameState = NewestGameState. 
+    askIfSaveAndQuit(Choice),
+    runRound( NewState, NewestGameState, NewPassCount, Choice, NewSaveAndQuit),
+    NewGameState = NewestGameState,
+    SaveAndQuit = NewSaveAndQuit. 
         
 updatePassCount(true, PassCount, NewCount) :- NewPassCount is PassCount+1,
     NewCount = NewPassCount.
@@ -384,27 +387,62 @@ getHandSum([],0).
 getHandSum([Domino|Rest],Sum):- Domino = [Pip1|[Pip2|_]],
     getHandSum(Rest, NewSum),
     Sum is NewSum+Pip1+Pip2.
+
+askIfSaveAndQuit(Answer):- write("Would you like to save and quit? (Y/N)"),
+    read(Choice),
+    validateYesNoChoice(Choice),
+    Answer = Choice.
+askIfSaveAndQuit(Answer):- askIfSaveAndQuit(NewAnswer),
+    Answer = NewAnswer.
+
+validateYesNoChoice(y).
+validateYesNoChoice(n).
+
     
 displayGameState(Layout, Stock):- write("----------------------------------------------------------"),
     nl,
     write("Layout:"),nl,
-    write(Layout),nl,
+    printLayout(Layout),
     write("----------------------------------------------------------"),
     nl,
     write("Stock:"),nl,
     write(Stock),nl,
     write("----------------------------------------------------------"),nl.
 
+printLayout(Layout) :- write(".."),printLine(Layout),nl,
+    write("L "),printMiddleLine(Layout),write("R"),nl,
+    write(".."),printLine(Layout),nl.
 
-generateRound(TournScore, RoundCount, HumanScore, ComputerScore, GameState) :- generateNums(6, Pips),
+printLine([]).
+printLine([Domino|Rest]):- checkIfDominoDouble(Domino, Double), Double = true,
+    Domino =[Pip1|_],
+	write(Pip1),write("."),
+    printLine(Rest).
+printLine([_|Rest]) :- write("...."),
+    printLine(Rest).
+
+
+printMiddleLine([]).
+printMiddleLine([Domino|Rest]):- checkIfDominoDouble(Domino, Double), Double = true,
+    write("| "),
+    printMiddleLine(Rest).
+printMiddleLine([Domino|Rest]):- Domino = [Pip1,Pip2],
+    write(Pip1),write("-"),write(Pip2),write(" "),
+    printMiddleLine(Rest).
+
+
+generateNewRound(TournScore, RoundCount, HumanScore, ComputerScore, GameState) :- generateNums(6, Pips),
     generateAllDominoes(Pips, Dominoes),
     random_permutation(Dominoes,Stock),
     getNDominoesFromStock(8, Stock, UpdatedStock1, HumanHand),
     write("Human Hand: "),write(HumanHand),nl,
     getNDominoesFromStock(8, UpdatedStock1, UpdatedStock2,  ComputerHand),
     write("Computer Hand: "),write(ComputerHand),nl,nl,
-    getEngineFromRoundCount(RoundCount, 7, Engine),
-    determineFirstPlayer(UpdatedStock2, HumanHand, ComputerHand, Engine, human, NextPlayer, NewStock, NewHuman, NewComputer),
+    initRound(TournScore, RoundCount, UpdatedStock2, HumanHand, HumanScore, ComputerHand, ComputerScore, NewGameState),
+    GameState = NewGameState.
+
+initRound(TournScore, RoundCount, Stock, HumanHand, HumanScore, ComputerHand, ComputerScore, GameState) :-  getEngineFromRoundCount(RoundCount, 7, Engine),
+    determineFirstPlayer(Stock, HumanHand, ComputerHand, Engine, human, NextPlayer, NewStock, NewHuman, NewComputer),
     Layout = [Engine],
     GameState = [TournScore,RoundCount,NewComputer, ComputerScore, NewHuman,HumanScore, Layout, NewStock, false, NextPlayer].
 
@@ -427,14 +465,30 @@ getTournamentScore(Score) :- nl,write("Invalid Input. Try again!"),nl,
 newTournament(_) :- getTournamentScore(Score),
     playTournament(Score, 1, 0, 0).
 
-playTournament(TournScore, _, HumanScore, CompScore):- checkIfTournamentEnded(TournScore, HumanScore, CompScore).
-playTournament(TournScore, RoundCount, HumanScore, CompScore):-
-    generateRound(TournScore, RoundCount, HumanScore, CompScore, GameState),
-    runRound(GameState, [CScore,HScore|_], 0),
+loadTournament(Tournament):- getTurn(Tournament, Turn),
+    Turn = [],
+    Tournament = [TournScore,RoundCount,Computer, ComputerScore, Human,HumanScore, _, Stock, _, _],
+    initRound(TournScore, RoundCount, Stock, Human, HumanScore, Computer, ComputerScore, NewGameState),
+    resumeTournament(NewGameState).
+loadTournament(Tournament) :- Tournament = [TournScore,RoundCount,NewComputer, ComputerScore, NewHuman,HumanScore, Layout, NewStock, Passed, NextPlayer],
+    delete(Layout, r, NewLayout),
+    delete(NewLayout, l, NewNewLayout),
+    NewTournament = [TournScore,RoundCount,NewComputer, ComputerScore, NewHuman,HumanScore, NewNewLayout, NewStock, Passed, NextPlayer],
+    resumeTournament(NewTournament).
+
+playTournament(_,_,_,_,true).
+playTournament(TournScore, _, HumanScore, CompScore,_):- checkIfTournamentEnded(TournScore, HumanScore, CompScore).
+playTournament(TournScore, RoundCount, HumanScore, CompScore,_):-
+    generateNewRound(TournScore, RoundCount, HumanScore, CompScore, GameState),
+    resumeTournament(GameState).
+
+resumeTournament(GameState) :- askIfSaveAndQuit(Choice),
+    runRound(GameState, [CScore,HScore|_], 0, Choice, SaveAndQuit),
+    GameState = [TournScore,RoundCount,_, ComputerScore, _,HumanScore, _, _, _, _],
     NewHumanScore is HumanScore + HScore,
-    NewCompScore is CompScore+CScore,
+    NewCompScore is ComputerScore+CScore,
     NewRoundCount is RoundCount+1,
-    playTournament(TournScore, NewRoundCount, NewHumanScore, NewCompScore).
+    playTournament(TournScore, NewRoundCount, NewHumanScore, NewCompScore, SaveAndQuit).
 
 checkIfTournamentEnded(TournScore, HumanScore, CompScore) :- HumanScore > TournScore,
     write("Human won the tournament with the score of "),write(HumanScore),nl,
