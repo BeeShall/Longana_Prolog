@@ -305,17 +305,9 @@ checkIfDominoDouble([Left | [Right|_]], true):- Left = Right.
 checkIfDominoDouble(_, false).
     
  %getters for the lists from gameState
-getTournamentScore(GameState, Score):- nth0(0,GameState,Score).
-
-getRoundNo(GameState, RoundNo):- nth0(1,GameState,RoundNo).
-
 getComputerHand(GameState, Hand):-nth0(2,GameState,Hand).
 
-getComputerScore(GameState, Score):-nth0(3,GameState,Score).
-
 getHumanHand(GameState, Hand ):-nth0(4,GameState,Hand).
-
-getHumanScore(GameState, Score):-nth0(5,GameState,Score).
 
 getLayout(GameState, Layout):-nth0(6,GameState,Layout).
 
@@ -324,9 +316,6 @@ getStock(GameState, Stock):-nth0(7,GameState,Stock).
 getPlayerPassed(GameState, Passed):-nth0(8,GameState,Passed).
 
 getTurn(GameState, Turn):-nth0(9,GameState,Turn).
-
-
-
 %
 
 playRound(OldGameState, NewGameState) :- getTurn(OldGameState, Turn),
@@ -382,6 +371,8 @@ determineRoundWinner(CompSum, HumanSum, 0, CompSum):- CompSum >HumanSum,
     write("Human wins the round with the score of "),write(CompSum),nl.
 determineRoundWinner(CompSum, HumanSum, HumanSum, 0):- HumanSum >CompSum,
     write("Computer wins the round with the score of "),write(HumanSum),nl.
+determineRoundWinner(CompSum, HumanSum, 0, 0):- HumanSum = CompSum,
+    write("The round ended as a draw!"),nl.
 
 getHandSum([],0).
 getHandSum([Domino|Rest],Sum):- Domino = [Pip1|[Pip2|_]],
@@ -463,7 +454,19 @@ getTournamentScore(Score) :- nl,write("Invalid Input. Try again!"),nl,
     Score = NewScore.
 
 newTournament(_) :- getTournamentScore(Score),
-    playTournament(Score, 1, 0, 0).
+    playTournament(Score, 1, 0, 0, false).
+
+getTournamentFromFile(Tournament):- write("Enter the filename to load: "),
+    read(FileName),
+    with_output_to(atom(AFileName), write(FileName)),
+    string_concat("/Users/beeshall/Documents/Fall-2018/OPL/Longana_Prolog/", AFileName, FullPath),
+    write(FullPath),nl,
+    open(FullPath,read,File),
+    read(File, Content),
+    close(File),
+    Tournament = Content.
+getTournamentFromFile(Tournament):- getTournamentFromFile(NewTournament),
+    Tournament = NewTournament.
 
 loadTournament(Tournament):- getTurn(Tournament, Turn),
     Turn = [],
@@ -496,3 +499,17 @@ checkIfTournamentEnded(TournScore, HumanScore, CompScore) :- HumanScore > TournS
 checkIfTournamentEnded(TournScore, HumanScore, CompScore) :- CompScore > TournScore,
     write("Computer won the tournament with the score of "),write(CompScore),nl,
     write("Human had a score of "),write(HumanScore),nl.
+
+longana(_):- write("Welcome to Longana!"),nl,
+    write("Would you like to load a game?(y/n)"),
+    read(Choice),
+    validateYesNoChoice(Choice),
+    startGame(Choice).
+
+startGame(y):- getTournamentFromFile(Tournament),
+    loadTournament(Tournament).
+startGame(y):- newTournament(_).
+    
+    
+        
+          
