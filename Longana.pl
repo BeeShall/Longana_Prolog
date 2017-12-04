@@ -330,7 +330,11 @@ playRound(OldGameState, NewGameState) :- getTurn(OldGameState, Turn),
 runRound(OldGameState, OldGameState,_, y, true) :-OldGameState = [TournScore,RoundCount,NewComputer, ComputerScore, NewHuman,HumanScore, Layout, NewStock, Passed, NextPlayer],
     NewLayout = [l|Layout],
     append(NewLayout, [r], FinalLayout),
-    write([TournScore,RoundCount,NewComputer, ComputerScore, NewHuman,HumanScore, FinalLayout, NewStock, Passed, NextPlayer]),nl.
+    open("/Users/beeshall/Documents/Fall-2018/OPL/Longana_Prolog/game.txt",write, Stream),
+    write(Stream,[TournScore,RoundCount,NewComputer, ComputerScore, NewHuman,HumanScore, FinalLayout, NewStock, Passed, NextPlayer]),
+    write(Stream,"."),
+    close(Stream).
+
 runRound(OldGameState, RoundResults, PassCount, _, false) :- OldGameState = [_,_,CompHand, _, HumanHand ,_, _, Stock, _, _],
     checkIfRoundEnded(Stock, HumanHand, CompHand, PassCount),nl,
     write("The round has ended!"),nl,
@@ -460,7 +464,6 @@ getTournamentFromFile(Tournament):- write("Enter the filename to load: "),
     read(FileName),
     with_output_to(atom(AFileName), write(FileName)),
     string_concat("/Users/beeshall/Documents/Fall-2018/OPL/Longana_Prolog/", AFileName, FullPath),
-    write(FullPath),nl,
     open(FullPath,read,File),
     read(File, Content),
     close(File),
@@ -494,9 +497,11 @@ resumeTournament(GameState) :- askIfSaveAndQuit(Choice),
     playTournament(TournScore, NewRoundCount, NewHumanScore, NewCompScore, SaveAndQuit).
 
 checkIfTournamentEnded(TournScore, HumanScore, CompScore) :- HumanScore > TournScore,
+    nl,write("Torunament ended!"),nl,
     write("Human won the tournament with the score of "),write(HumanScore),nl,
     write("Computer had a score of "),write(CompScore),nl.
 checkIfTournamentEnded(TournScore, HumanScore, CompScore) :- CompScore > TournScore,
+    nl,write("Torunament ended!"),nl,
     write("Computer won the tournament with the score of "),write(CompScore),nl,
     write("Human had a score of "),write(HumanScore),nl.
 
@@ -508,7 +513,7 @@ longana(_):- write("Welcome to Longana!"),nl,
 
 startGame(y):- getTournamentFromFile(Tournament),
     loadTournament(Tournament).
-startGame(y):- newTournament(_).
+startGame(n):- newTournament(_).
     
     
         
